@@ -2,7 +2,6 @@ require('dotenv').config();
 const { default: makeWASocket, useMultiFileAuthState, DisconnectReason } = require('@whiskeysockets/baileys');
 const { Boom } = require('@hapi/boom');
 const pino = require('pino');
-const readline = require('readline');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const { createClient } = require('@supabase/supabase-js');
 
@@ -14,8 +13,6 @@ const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANO
 const http = require('http');
 http.createServer((req, res) => { res.writeHead(200); res.end('Bot is running'); }).listen(process.env.PORT || 3000);
 
-const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-const question = (text) => new Promise((resolve) => rl.question(text, resolve));
 
 const BOT_WHATSAPP_NUMBER = '255773189300';
 
@@ -142,7 +139,6 @@ async function startBot() {
       } else {
         console.log('⚠️ No business found for this number — deals/products will not work.');
       }
-      rl.close();
     }
   });
 
