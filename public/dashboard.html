@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Espirito — Dashboard</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+  <div class="app-header">
+    <span class="brand">ESPIRITO</span>
+    <button class="menu-btn" id="menu-toggle">☰</button>
+  </div>
+  <div class="menu-overlay" id="menu-overlay">
+    <div class="menu-panel">
+      <a href="dashboard.html" class="active">Dashboard</a>
+      <a href="products.html">Products</a>
+      <a href="deals.html">Deals</a>
+      <a href="settings.html">Settings</a>
+      <a href="#" class="logout" id="logout-link">Log Out</a>
+    </div>
+  </div>
+
+  <div class="page">
+    <h1>Dashboard</h1>
+    <div class="stat-grid">
+      <div class="stat-card"><div class="num" id="product-count">–</div><div class="label">Products</div></div>
+      <div class="stat-card"><div class="num" id="pending-count">–</div><div class="label">Pending Deals</div></div>
+    </div>
+
+    <a href="products.html" class="action-btn">📦 Manage Products</a>
+    <a href="deals.html" class="action-btn">🤝 Review Deals</a>
+  </div>
+
+  <script>
+    const SUPABASE_URL = 'https://sbtmbkpgefzgcokucitm.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_0AbGRZ4qXZFC6GwcllNmrg_CvnW84Ka';
+    const BUSINESS_ID = 'eac22b08-03d1-46dd-9b59-0b8232597f2e';
+    const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    client.auth.getSession().then(({ data }) => {
+      if (!data.session) window.location.href = 'login.html';
+    });
+
+    document.getElementById('menu-toggle').addEventListener('click', () => {
+      document.getElementById('menu-overlay').classList.add('open');
+    });
+    document.getElementById('menu-overlay').addEventListener('click', (e) => {
+      if (e.target.id === 'menu-overlay') e.target.classList.remove('open');
+    });
+    document.getElementById('logout-link').addEventListener('click', async (e) => {
+      e.preventDefault();
+      await client.auth.signOut();
+      window.location.href = 'login.html';
+    });
+
+    async function loadStats() {
+      const { count: productCount } = await client
+        .from('products')
+        .select('*', { count: 'exact', head: true })
+        .eq('business_id', BUSINESS_ID);
+
+      const { count: dealCount } = await client
+        .from('deals')
+        .select('*', { count: 'exact', head: true })
+        .eq('business_id', BUSINESS_ID)
+        .eq('status', 'pending');
+
+      document.getElementById('product-count').textContent = productCount ?? 0;
+      document.getElementById('pending-count').textContent = dealCount ?? 0;
+    }
+
+    loadStats();
+  </script>
+</body>
+</html>

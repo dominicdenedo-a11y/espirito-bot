@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Espirito — Settings</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+  <div class="app-header">
+    <span class="brand">ESPIRITO</span>
+    <button class="menu-btn" id="menu-toggle">☰</button>
+  </div>
+  <div class="menu-overlay" id="menu-overlay">
+    <div class="menu-panel">
+      <a href="dashboard.html">Dashboard</a>
+      <a href="products.html">Products</a>
+      <a href="deals.html">Deals</a>
+      <a href="settings.html" class="active">Settings</a>
+      <a href="#" class="logout" id="logout-link">Log Out</a>
+    </div>
+  </div>
+
+  <div class="page">
+    <h1>Business Settings</h1>
+
+    <div class="card">
+      <label style="font-size:0.85em;color:var(--text-dim);display:block;margin-bottom:6px;">Business name</label>
+      <input type="text" id="biz-name" placeholder="Business name">
+
+      <label style="font-size:0.85em;color:var(--text-dim);display:block;margin-bottom:6px;">WhatsApp number</label>
+      <input type="text" id="biz-number" placeholder="e.g. 255773189300">
+
+      <button id="save-btn">Save Changes</button>
+      <p id="msg" class="msg"></p>
+    </div>
+  </div>
+
+  <script>
+    const SUPABASE_URL = 'https://sbtmbkpgefzgcokucitm.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_0AbGRZ4qXZFC6GwcllNmrg_CvnW84Ka';
+    const BUSINESS_ID = 'eac22b08-03d1-46dd-9b59-0b8232597f2e';
+    const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    client.auth.getSession().then(({ data }) => {
+      if (!data.session) window.location.href = 'login.html';
+    });
+
+    document.getElementById('menu-toggle').addEventListener('click', () => {
+      document.getElementById('menu-overlay').classList.add('open');
+    });
+    document.getElementById('menu-overlay').addEventListener('click', (e) => {
+      if (e.target.id === 'menu-overlay') e.target.classList.remove('open');
+    });
+    document.getElementById('logout-link').addEventListener('click', async (e) => {
+      e.preventDefault();
+      await client.auth.signOut();
+      window.location.href = 'login.html';
+    });
+
+    async function loadBusiness() {
+      const { data, error } = await client
+        .from('businesses')
+        .select('*')
+        .eq('id', BUSINESS_ID)
+        .single();
+
+      if (error) {
+        document.getElementById('msg').textContent = 'Error loading: ' + error.message;
+        document.getElementById('msg').className = 'msg error';
+        return;
+      }
+
+      document.getElementById('biz-name').value = data.name || '';
+      document.getElementById('biz-number').value = data.whatsapp_number || '';
+    }
+
+    document.getElementById('save-btn').addEventListener('click', async () => {
+      const msg = document.getElementById('msg');
+      const name = document.getElementById('biz-name').value;
+      const whatsapp_number = document.getElementById('biz-number').value;
+
+      msg.textContent = 'Saving...';
+      msg.className = 'msg';
+
+      const { error } = await client
+        .from('businesses')
+        .update({ name, whatsapp_number })
+        .eq('id', BUSINESS_ID);
+
+      if (error) {
+        msg.textContent = 'Error: ' + error.message;
+        msg.className = 'msg error';
+        return;
+      }
+
+      msg.textContent = 'Saved!';
+      msg.className = 'msg success';
+    });
+
+    loadBusiness();
+  </script>
+</body>
+</html>

@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Espirito — Products</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    .preview { width: 100%; max-height: 180px; object-fit: cover; border-radius: 8px; margin-bottom: 12px; display: none; }
+    .card img.thumb { width: 100%; max-height: 160px; object-fit: cover; border-radius: 8px; margin-bottom: 10px; }
+  </style>
+</head>
+<body>
+  <div class="app-header">
+    <span class="brand">ESPIRITO</span>
+    <button class="menu-btn" id="menu-toggle">☰</button>
+  </div>
+  <div class="menu-overlay" id="menu-overlay">
+    <div class="menu-panel">
+      <a href="dashboard.html">Dashboard</a>
+      <a href="products.html" class="active">Products</a>
+      <a href="deals.html">Deals</a>
+      <a href="settings.html">Settings</a>
+      <a href="#" class="logout" id="logout-link">Log Out</a>
+    </div>
+  </div>
+
+  <div class="page">
+    <h1>Products</h1>
+
+    <div class="card">
+      <img id="preview" class="preview">
+      <input type="file" id="image-input" accept="image/*">
+      <input type="text" id="name" placeholder="Product name" required>
+      <input type="number" id="price" placeholder="Price (₦)" required>
+      <input type="number" id="stock" placeholder="Stock quantity" required>
+      <textarea id="description" placeholder="Description (color, size, condition, etc.)"></textarea>
+      <button id="add-btn">Add Product</button>
+      <p id="form-msg" class="msg"></p>
+    </div>
+
+    <h2>Current Products</h2>
+    <div id="products-list"><p class="empty">Loading...</p></div>
+  </div>
+
+  <script>
+    const SUPABASE_URL = 'https://sbtmbkpgefzgcokucitm.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_0AbGRZ4qXZFC6GwcllNmrg_CvnW84Ka';
+    const BUSINESS_ID = 'eac22b08-03d1-46dd-9b59-0b8232597f2e';
+    const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    client.auth.getSession().then(({ data }) => {
+      if (!data.session) window.location.href = 'login.html';
+    });
+
+    document.getElementById('menu-toggle').addEventListener('click', () => {
+      document.getElementById('menu-overlay').classList.add('open');
+    });
+    document.getElementById('menu-overlay').addEventListener('click', (e) => {
+      if (e.target.id === 'menu-overlay') e.target.classList.remove('open');
+    });
+    document.getElementById('logout-link').addEventListener('click', async (e) => {
+      e.preventDefault();
+      await client.auth.signOut();
+      window.location.href = 'login.html';
+    });
+
+    let selectedFile = null;
+
+    document.getElementById('image-input').addEventListener('change', (e) => {
+      selectedFile = e.target.files[0];
+      if (selectedFile) {
+        const preview = document.getElementById('preview');
+        preview.src = URL.createObjectURL(selectedFile);
+        preview.style.display = 'block';
+      }
+    });
+
+    async function loadProducts() {
+      const container = document.getElementById('products-list');
+      const { data, error } = await client
+        .from('products')
+        .select('*')
+        .eq('business_id', BUSINESS_ID)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        container.innerHTML = '<p class="error">Error: ' + error.message + '</p>';
+        return;
+      }
+      if (!data || data.length === 0) {
+        container.innerHTML = '<p class="empty">No products yet.</p>';
+        return;
+      }
+      container.innerHTML = data.map(p => `
+        <div class="card">
+          ${p.image_url ? `<img class="thumb" src="${p.image_url}">` : ''}
+          <p><strong>${p.name}</strong> — ₦${p.price}</p>
+          <p>Stock: ${p.stock}</p>
+          <p>${p.description || ''}</p>
+        </div>
+      `).join('');
+    }
+
+    document.getElementById('add-btn').addEventListener('click', async () => {
+      const msg = document.getElementById('form-msg');
+      const name = document.getElementById('name').value;
+      const price = document.getElementById('price').value;
+      const stock = document.getElementById('stock').value;
+      const description = document.getElementById('description').value;
+
+      if (!name || !price || !stock) {
+        msg.textContent = 'Please fill in name, price, and stock.';
+        msg.className = 'msg error';
+        return;
+      }
+
+      let image_url = null;
+
+      if (selectedFile) {
+        msg.textContent = 'Uploading image...';
+        msg.className = 'msg';
+
+        const fileExt = selectedFile.name.split('.').pop();
+        const filePath = `${BUSINESS_ID}/${Date.now()}.${fileExt}`;
+
+        const { error: uploadError } = await client.storage
+          .from('Image')
+          .upload(filePath, selectedFile);
+
+        if (uploadError) {
+          msg.textContent = 'Image upload error: ' + uploadError.message;
+          msg.className = 'msg error';
+          return;
+        }
+
+        const { data: urlData } = client.storage
+          .from('Image')
+          .getPublicUrl(filePath);
+
+        image_url = urlData.publicUrl;
+      }
+
+      msg.textContent = 'Saving product...';
+      msg.className = 'msg';
+
+      const { error } = await client.from('products').insert({
+        business_id: BUSINESS_ID, name, price, stock, description, image_url,
+      });
+
+      if (error) {
+        msg.textContent = 'Error: ' + error.message;
+        msg.className = 'msg error';
+        return;
+      }
+
+      msg.textContent = 'Product added!';
+      msg.className = 'msg success';
+      document.getElementById('name').value = '';
+      document.getElementById('price').value = '';
+      document.getElementById('stock').value = '';
+      document.getElementById('description').value = '';
+      document.getElementById('image-input').value = '';
+      document.getElementById('preview').style.display = 'none';
+      selectedFile = null;
+      loadProducts();
+    });
+
+    loadProducts();
+  </script>
+</body>
+</html>

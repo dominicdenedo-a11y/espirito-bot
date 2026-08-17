@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Espirito — Deals</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+  <div class="app-header">
+    <span class="brand">ESPIRITO</span>
+    <button class="menu-btn" id="menu-toggle">☰</button>
+  </div>
+  <div class="menu-overlay" id="menu-overlay">
+    <div class="menu-panel">
+      <a href="dashboard.html">Dashboard</a>
+      <a href="products.html">Products</a>
+      <a href="deals.html" class="active">Deals</a>
+      <a href="settings.html">Settings</a>
+      <a href="#" class="logout" id="logout-link">Log Out</a>
+    </div>
+  </div>
+
+  <div class="page">
+    <h1>Pending Deals</h1>
+    <div id="deals-list"><p class="empty">Loading...</p></div>
+  </div>
+
+  <script>
+    const SUPABASE_URL = 'https://sbtmbkpgefzgcokucitm.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_0AbGRZ4qXZFC6GwcllNmrg_CvnW84Ka';
+    const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    client.auth.getSession().then(({ data }) => {
+      if (!data.session) window.location.href = 'login.html';
+    });
+
+    document.getElementById('menu-toggle').addEventListener('click', () => {
+      document.getElementById('menu-overlay').classList.add('open');
+    });
+    document.getElementById('menu-overlay').addEventListener('click', (e) => {
+      if (e.target.id === 'menu-overlay') e.target.classList.remove('open');
+    });
+    document.getElementById('logout-link').addEventListener('click', async (e) => {
+      e.preventDefault();
+      await client.auth.signOut();
+      window.location.href = 'login.html';
+    });
+
+    async function loadDeals() {
+      const container = document.getElementById('deals-list');
+      const { data: deals, error } = await client
+        .from('deals')
+        .select('*, products(name, price)')
+        .eq('status', 'pending')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        container.innerHTML = '<p class="error">Error: ' + error.message + '</p>';
+        return;
+      }
+      if (!deals || deals.length === 0) {
+        container.innerHTML = '<p class="empty">No pending deals right now.</p>';
+        return;
+      }
+
+      container.innerHTML = deals.map(deal => `
+        <div class="card" id="deal-${deal.id}">
+          <span class="status">${deal.status}</span>
+          <p><strong>Product:</strong> ${deal.products ? deal.products.name + ' — ₦' + deal.products.price : 'N/A'}</p>
+          <p><strong>Customer:</strong> ${deal.customer_number}</p>
+          <p><strong>Message:</strong> "${deal.chat_summary}"</p>
+          <div class="buttons">
+            <button class="confirm" onclick="updateDeal('${deal.id}', 'confirmed')">Confirm</button>
+            <button class="reject" onclick="updateDeal('${deal.id}', 'rejected')">Reject</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    async function updateDeal(id, status) {
+      const { error } = await client.from('deals').update({ status }).eq('id', id);
+      if (error) {
+        alert('Error updating deal: ' + error.message);
+        return;
+      }
+      loadDeals();
+    }
+
+    loadDeals();
+  </script>
+</body>
+</html>

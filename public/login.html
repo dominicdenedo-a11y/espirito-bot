@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Espirito — Log In</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+  <div class="login-wrap">
+    <div class="login-brand">ESPIRITO</div>
+
+    <div class="login-card">
+      <!-- LOGIN -->
+      <div id="login-form">
+        <h2>Welcome back</h2>
+        <p class="subtitle">Log in to manage your business</p>
+
+        <label>Email</label>
+        <input type="email" id="login-email" placeholder="you@email.com" required>
+
+        <label>Password</label>
+        <input type="password" id="login-password" placeholder="••••••••" required>
+
+        <button id="login-btn">Log In</button>
+        <p class="toggle">New here? <a id="show-signup">Create an account</a></p>
+      </div>
+
+      <!-- SIGNUP STEP 1 -->
+      <div id="signup-email-form" class="hidden">
+        <h2>Create your account</h2>
+        <p class="subtitle">We'll send a code to verify your email</p>
+
+        <label>Email</label>
+        <input type="email" id="signup-email" placeholder="you@email.com" required>
+
+        <button id="send-code-btn">Send verification code</button>
+        <p class="toggle">Already have an account? <a id="show-login-1">Log in</a></p>
+      </div>
+
+      <!-- SIGNUP STEP 2 -->
+      <div id="signup-otp-form" class="hidden">
+        <h2>Enter your code</h2>
+        <p class="subtitle">Check your email for a 6-digit code</p>
+
+        <label>Verification code</label>
+        <input type="text" id="signup-otp" placeholder="123456" required>
+
+        <button id="verify-code-btn">Verify code</button>
+      </div>
+
+      <!-- SIGNUP STEP 3 -->
+      <div id="signup-password-form" class="hidden">
+        <h2>Set a password</h2>
+        <p class="subtitle">At least 8 characters</p>
+
+        <label>Password</label>
+        <input type="password" id="signup-password" placeholder="••••••••" required>
+
+        <label>Confirm password</label>
+        <input type="password" id="signup-password-confirm" placeholder="••••••••" required>
+
+        <button id="set-password-btn">Finish Signup</button>
+      </div>
+
+      <p id="msg" class="msg"></p>
+    </div>
+  </div>
+
+  <script>
+    const SUPABASE_URL = 'https://sbtmbkpgefzgcokucitm.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_0AbGRZ4qXZFC6GwcllNmrg_CvnW84Ka';
+    const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    const msg = document.getElementById('msg');
+    let signupEmail = '';
+
+    function showOnly(id) {
+      ['login-form', 'signup-email-form', 'signup-otp-form', 'signup-password-form']
+        .forEach(section => document.getElementById(section).classList.add('hidden'));
+      document.getElementById(id).classList.remove('hidden');
+      msg.textContent = '';
+    }
+
+    document.getElementById('show-signup').addEventListener('click', () => showOnly('signup-email-form'));
+    document.getElementById('show-login-1').addEventListener('click', () => showOnly('login-form'));
+
+    document.getElementById('login-btn').addEventListener('click', async () => {
+      const email = document.getElementById('login-email').value;
+      const password = document.getElementById('login-password').value;
+      if (!email || !password) return;
+
+      msg.textContent = 'Logging in...';
+      msg.className = 'msg';
+
+      const { error } = await client.auth.signInWithPassword({ email, password });
+
+      if (error) {
+        msg.textContent = 'Error: ' + error.message;
+        msg.className = 'msg error';
+        return;
+      }
+
+      msg.textContent = 'Logged in! Redirecting...';
+      msg.className = 'msg success';
+      setTimeout(() => window.location.href = 'dashboard.html', 800);
+    });
+
+    document.getElementById('send-code-btn').addEventListener('click', async () => {
+      signupEmail = document.getElementById('signup-email').value;
+      if (!signupEmail) return;
+
+      msg.textContent = 'Sending code...';
+      msg.className = 'msg';
+
+      const { error } = await client.auth.signInWithOtp({ email: signupEmail });
+
+      if (error) {
+        msg.textContent = 'Error: ' + error.message;
+        msg.className = 'msg error';
+        return;
+      }
+
+      msg.textContent = 'Code sent! Check your email.';
+      msg.className = 'msg success';
+      showOnly('signup-otp-form');
+    });
+
+    document.getElementById('verify-code-btn').addEventListener('click', async () => {
+      const otp = document.getElementById('signup-otp').value;
+      if (!otp) return;
+
+      msg.textContent = 'Verifying...';
+      msg.className = 'msg';
+
+      const { error } = await client.auth.verifyOtp({
+        email: signupEmail,
+        token: otp,
+        type: 'email',
+      });
+
+      if (error) {
+        msg.textContent = 'Error: ' + error.message;
+        msg.className = 'msg error';
+        return;
+      }
+
+      msg.textContent = 'Email verified! Now set a password.';
+      msg.className = 'msg success';
+      showOnly('signup-password-form');
+    });
+
+    document.getElementById('set-password-btn').addEventListener('click', async () => {
+      const pw = document.getElementById('signup-password').value;
+      const pwConfirm = document.getElementById('signup-password-confirm').value;
+
+      if (!pw || pw.length < 8) {
+        msg.textContent = 'Password must be at least 8 characters.';
+        msg.className = 'msg error';
+        return;
+      }
+      if (pw !== pwConfirm) {
+        msg.textContent = 'Passwords do not match.';
+        msg.className = 'msg error';
+        return;
+      }
+
+      msg.textContent = 'Saving password...';
+      msg.className = 'msg';
+
+      const { error } = await client.auth.updateUser({ password: pw });
+
+      if (error) {
+        msg.textContent = 'Error: ' + error.message;
+        msg.className = 'msg error';
+        return;
+      }
+
+      msg.textContent = 'Account ready! Redirecting...';
+      msg.className = 'msg success';
+      setTimeout(() => window.location.href = 'dashboard.html', 800);
+    });
+  </script>
+</body>
+</html>
