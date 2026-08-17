@@ -117,7 +117,8 @@ async function startBot() {
   });
 
   if (!sock.authState.creds.registered) {
-    const phoneNumber = await question('Enter your phone number (with country code, no + or spaces): ');
+    const phoneNumber = process.env.WHATSAPP_PHONE_NUMBER;
+    if (!phoneNumber) { console.error('WHATSAPP_PHONE_NUMBER not set'); return; }
     const code = await sock.requestPairingCode(phoneNumber.trim());
     console.log(`Your pairing code: ${code}`);
   }
