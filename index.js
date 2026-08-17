@@ -119,6 +119,7 @@ async function startBot() {
   if (!sock.authState.creds.registered) {
     const phoneNumber = process.env.WHATSAPP_PHONE_NUMBER;
     if (!phoneNumber) { console.error('WHATSAPP_PHONE_NUMBER not set'); return; }
+    await new Promise(resolve => setTimeout(resolve, 3000));
     const code = await sock.requestPairingCode(phoneNumber.trim());
     console.log(`Your pairing code: ${code}`);
   }
