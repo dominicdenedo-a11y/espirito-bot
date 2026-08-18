@@ -63,6 +63,18 @@ async function logDeal(businessId, customerNumber, chatSummary, productId) {
   else console.log('📝 Deal flagged for owner review');
 }
 
+async function generateWithRetry(prompt, maxAttempts = 5) {
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      return await model.generateContent(prompt);
+    } catch (err) {
+      console.log(`Attempt ${attempt} failed:`, err.message);
+      if (attempt === maxAttempts) throw err;
+      await new Promise(r => setTimeout(r, 3000 * attempt));
+    }
+  }
+}
+
 async function askGemini(userMessage, businessId) {
   const { text: productContext, products } = await getProductContext(businessId);
 
@@ -86,7 +98,7 @@ PRODUCT_ID: <the product id if DEAL or SEND_IMAGE is yes and a specific product 
 Customer message: ${userMessage}`;
 
   try {
-    const result = await model.generateContent(prompt);
+    const result = await generateWithRetry(prompt);
     const raw = result.response.text();
 
     const replyMatch = raw.match(/REPLY:\s*([\s\S]*?)\nDEAL:/);
