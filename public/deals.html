@@ -72,17 +72,44 @@
           <p><strong>Customer:</strong> ${deal.customer_number}</p>
           <p><strong>Message:</strong> "${deal.chat_summary}"</p>
           <div class="buttons">
-            <button class="confirm" onclick="updateDeal('${deal.id}', 'confirmed')">Confirm</button>
-            <button class="reject" onclick="updateDeal('${deal.id}', 'rejected')">Reject</button>
+            <button class="confirm" onclick="updateDeal('${deal.id}', 'confirmed', '${deal.product_id || ''}')">Confirm</button>
+            <button class="reject" onclick="updateDeal('${deal.id}', 'rejected', '')">Reject</button>
+            <button class="reject" onclick="deleteDeal('${deal.id}')">Delete</button>
           </div>
         </div>
       `).join('');
     }
 
-    async function updateDeal(id, status) {
+    async function updateDeal(id, status, productId) {
       const { error } = await client.from('deals').update({ status }).eq('id', id);
       if (error) {
         alert('Error updating deal: ' + error.message);
+        return;
+      }
+
+      if (status === 'confirmed' && productId) {
+        const { data: product } = await client
+          .from('products')
+          .select('stock')
+          .eq('id', productId)
+          .single();
+
+        if (product && product.stock > 0) {
+          await client
+            .from('products')
+            .update({ stock: product.stock - 1 })
+            .eq('id', productId);
+        }
+      }
+
+      loadDeals();
+    }
+
+    async function deleteDeal(id) {
+      if (!confirm('Delete this deal?')) return;
+      const { error } = await client.from('deals').delete().eq('id', id);
+      if (error) {
+        alert('Error deleting deal: ' + error.message);
         return;
       }
       loadDeals();

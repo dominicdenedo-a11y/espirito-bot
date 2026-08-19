@@ -47,12 +47,29 @@
   <script>
     const SUPABASE_URL = 'https://sbtmbkpgefzgcokucitm.supabase.co';
     const SUPABASE_KEY = 'sb_publishable_0AbGRZ4qXZFC6GwcllNmrg_CvnW84Ka';
-    const BUSINESS_ID = 'eac22b08-03d1-46dd-9b59-0b8232597f2e';
     const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    client.auth.getSession().then(({ data }) => {
-      if (!data.session) window.location.href = 'login.html';
-    });
+    let BUSINESS_ID = null;
+
+    async function initBusiness() {
+      const { data: sessionData } = await client.auth.getSession();
+      if (!sessionData.session) {
+        window.location.href = 'login.html';
+        return false;
+      }
+      const { data: biz, error } = await client
+        .from('businesses')
+        .select('id')
+        .eq('owner_id', sessionData.session.user.id)
+        .single();
+      if (error || !biz) {
+        document.getElementById('products-list').innerHTML =
+          '<p class="error">Could not load your business: ' + (error?.message || 'no business found') + '</p>';
+        return false;
+      }
+      BUSINESS_ID = biz.id;
+      return true;
+    }
 
     document.getElementById('menu-toggle').addEventListener('click', () => {
       document.getElementById('menu-overlay').classList.add('open');
@@ -167,7 +184,7 @@
       loadProducts();
     });
 
-    loadProducts();
+    initBusiness().then(ok => { if (ok) loadProducts(); });
   </script>
 </body>
 </html>
