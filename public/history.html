@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Espirito — Deals</title>
+  <title>Espirito — Order History</title>
   <link rel="stylesheet" href="style.css">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -16,16 +16,16 @@
     <div class="menu-panel">
       <a href="dashboard.html">Dashboard</a>
       <a href="products.html">Products</a>
-      <a href="deals.html" class="active">Deals</a>
-      <a href="history.html">Order History</a>
+      <a href="deals.html">Deals</a>
+      <a href="history.html" class="active">Order History</a>
       <a href="settings.html">Settings</a>
       <a href="#" class="logout" id="logout-link">Log Out</a>
     </div>
   </div>
 
   <div class="page">
-    <h1>Pending Deals</h1>
-    <div id="deals-list"><p class="empty">Loading...</p></div>
+    <h1>Order History</h1>
+    <div id="history-list"><p class="empty">Loading...</p></div>
   </div>
 
   <script>
@@ -49,12 +49,12 @@
       window.location.href = 'login.html';
     });
 
-    async function loadDeals() {
-      const container = document.getElementById('deals-list');
+    async function loadHistory() {
+      const container = document.getElementById('history-list');
       const { data: deals, error } = await client
         .from('deals')
         .select('*, products(name, price)')
-        .eq('status', 'pending')
+        .in('status', ['confirmed', 'rejected'])
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -62,7 +62,7 @@
         return;
       }
       if (!deals || deals.length === 0) {
-        container.innerHTML = '<p class="empty">No pending deals right now.</p>';
+        container.innerHTML = '<p class="empty">No order history yet.</p>';
         return;
       }
 
@@ -72,51 +72,25 @@
           <p><strong>Product:</strong> ${deal.products ? deal.products.name + ' — ₦' + deal.products.price : 'N/A'}</p>
           <p><strong>Customer:</strong> ${deal.customer_number}</p>
           <p><strong>Message:</strong> "${deal.chat_summary}"</p>
+          <p style="color:var(--text-dim);font-size:0.85em;">${new Date(deal.created_at).toLocaleString()}</p>
           <div class="buttons">
-            <button class="confirm" onclick="updateDeal('${deal.id}', 'confirmed', '${deal.product_id || ''}')">Confirm</button>
-            <button class="reject" onclick="updateDeal('${deal.id}', 'rejected', '')">Reject</button>
             <button class="reject" onclick="deleteDeal('${deal.id}')">Delete</button>
           </div>
         </div>
       `).join('');
     }
 
-    async function updateDeal(id, status, productId) {
-      const { error } = await client.from('deals').update({ status }).eq('id', id);
-      if (error) {
-        alert('Error updating deal: ' + error.message);
-        return;
-      }
-
-      if (status === 'confirmed' && productId) {
-        const { data: product } = await client
-          .from('products')
-          .select('stock')
-          .eq('id', productId)
-          .single();
-
-        if (product && product.stock > 0) {
-          await client
-            .from('products')
-            .update({ stock: product.stock - 1 })
-            .eq('id', productId);
-        }
-      }
-
-      loadDeals();
-    }
-
     async function deleteDeal(id) {
-      if (!confirm('Delete this deal?')) return;
+      if (!confirm('Delete this order permanently?')) return;
       const { error } = await client.from('deals').delete().eq('id', id);
       if (error) {
-        alert('Error deleting deal: ' + error.message);
+        alert('Error deleting: ' + error.message);
         return;
       }
-      loadDeals();
+      loadHistory();
     }
 
-    loadDeals();
+    loadHistory();
   </script>
 </body>
 </html>
