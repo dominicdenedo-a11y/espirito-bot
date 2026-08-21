@@ -73,7 +73,15 @@
           <span class="status">${deal.status}</span>
           <p><strong>Product:</strong> ${deal.products ? deal.products.name + ' — ₦' + deal.products.price : 'N/A'}</p>
           <p><strong>Customer:</strong> ${deal.customer_number}</p>
-          <p><strong>Message:</strong> "${deal.chat_summary}"</p>
+          <div class="view-msg" data-id="${deal.id}">
+            <p><strong>Message:</strong> "${deal.chat_summary}"</p>
+            <button onclick="toggleDealEdit('${deal.id}')">Edit Message</button>
+          </div>
+          <div class="edit-msg" data-id="${deal.id}" style="display:none;">
+            <input type="text" id="edit-summary-${deal.id}" value="${(deal.chat_summary || '').replace(/"/g, '&quot;')}">
+            <button onclick="saveDealEdit('${deal.id}')">Save</button>
+            <button onclick="toggleDealEdit('${deal.id}')">Cancel</button>
+          </div>
           <div class="buttons">
             <button class="confirm" onclick="updateDeal('${deal.id}', 'confirmed', '${deal.product_id || ''}')">Confirm</button>
             <button class="reject" onclick="updateDeal('${deal.id}', 'rejected', '')">Reject</button>
@@ -81,6 +89,27 @@
           </div>
         </div>
       `).join('');
+
+      window._loadDeals = loadDeals;
+    }
+
+    function toggleDealEdit(id) {
+      document.querySelectorAll('.view-msg[data-id="' + id + '"]').forEach(el => {
+        el.style.display = el.style.display === 'none' ? 'block' : 'none';
+      });
+      document.querySelectorAll('.edit-msg[data-id="' + id + '"]').forEach(el => {
+        el.style.display = el.style.display === 'none' ? 'block' : 'none';
+      });
+    }
+
+    async function saveDealEdit(id) {
+      const chat_summary = document.getElementById('edit-summary-' + id).value;
+      const { error } = await client.from('deals').update({ chat_summary }).eq('id', id);
+      if (error) {
+        alert('Error saving: ' + error.message);
+        return;
+      }
+      loadDeals();
     }
 
     async function updateDeal(id, status, productId) {
