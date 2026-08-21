@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Espirito — Analytics</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+  <div class="app-header">
+    <span class="brand">ESPIRITO</span>
+    <button class="menu-btn" id="menu-toggle">☰</button>
+  </div>
+  <div class="menu-overlay" id="menu-overlay">
+    <div class="menu-panel">
+      <a href="dashboard.html">Dashboard</a>
+      <a href="products.html">Products</a>
+      <a href="deals.html">Deals</a>
+      <a href="history.html">Order History</a>
+      <a href="customers.html">Customers</a>
+      <a href="analytics.html" class="active">Analytics</a>
+      <a href="settings.html">Settings</a>
+      <a href="#" class="logout" id="logout-link">Log Out</a>
+    </div>
+  </div>
+
+  <div class="page">
+    <h1>Analytics</h1>
+    <div class="stat-grid">
+      <div class="stat-card"><div class="num" id="total-revenue">–</div><div class="label">Total Revenue</div></div>
+      <div class="stat-card"><div class="num" id="total-orders">–</div><div class="label">Confirmed Orders</div></div>
+    </div>
+
+    <h2>Top Products</h2>
+    <div id="top-products"><p class="empty">Loading...</p></div>
+  </div>
+
+  <script>
+    const SUPABASE_URL = 'https://sbtmbkpgefzgcokucitm.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_0AbGRZ4qXZFC6GwcllNmrg_CvnW84Ka';
+    const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    client.auth.getSession().then(({ data }) => {
+      if (!data.session) window.location.href = 'login.html';
+    });
+
+    document.getElementById('menu-toggle').addEventListener('click', () => {
+      document.getElementById('menu-overlay').classList.add('open');
+    });
+    document.getElementById('menu-overlay').addEventListener('click', (e) => {
+      if (e.target.id === 'menu-overlay') e.target.classList.remove('open');
+    });
+    document.getElementById('logout-link').addEventListener('click', async (e) => {
+      e.preventDefault();
+      await client.auth.signOut();
+      window.location.href = 'login.html';
+    });
+
+    async function loadAnalytics() {
+      const { data: deals, error } = await client
+        .from('deals')
+        .select('*, products(name, price)')
+        .eq('status', 'confirmed');
+
+      const topContainer = document.getElementById('top-products');
+
+      if (error) {
+        topContainer.innerHTML = '<p class="error">Error: ' + error.message + '</p>';
+        return;
+      }
+
+      let totalRevenue = 0;
+      const productCounts = {};
+
+      for (const deal of deals || []) {
+        const price = deal.products ? Number(deal.products.price) : 0;
+        const name = deal.products ? deal.products.name : 'Unknown';
+        totalRevenue += price;
+        productCounts[name] = (productCounts[name] || 0) + 1;
+      }
+
+      document.getElementById('total-revenue').textContent = '₦' + totalRevenue.toLocaleString();
+      document.getElementById('total-orders').textContent = (deals || []).length;
+
+      const sorted = Object.entries(productCounts).sort((a, b) => b[1] - a[1]);
+
+      if (sorted.length === 0) {
+        topContainer.innerHTML = '<p class="empty">No sales yet.</p>';
+        return;
+      }
+
+      topContainer.innerHTML = sorted.map(([name, count]) => `
+        <div class="card">
+          <p><strong>${name}</strong></p>
+          <p>${count} sold</p>
+        </div>
+      `).join('');
+    }
+
+    loadAnalytics();
+  </script>
+</body>
+</html>
