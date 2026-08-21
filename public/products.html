@@ -34,7 +34,7 @@
 
     <div class="card">
       <img id="preview" class="preview">
-      <input type="file" id="image-input" accept="image/*">
+      <input type="file" id="image-input" accept="image/*" multiple>
       <input type="text" id="name" placeholder="Product name" required>
       <input type="number" id="price" placeholder="Price (₦)" required>
       <input type="number" id="stock" placeholder="Stock quantity" required>
@@ -89,10 +89,11 @@
       window.location.href = 'login.html';
     });
 
-    let selectedFile = null;
+    let selectedFiles = [];
 
     document.getElementById('image-input').addEventListener('change', (e) => {
-      selectedFile = e.target.files[0];
+      selectedFiles = Array.from(e.target.files);
+      const selectedFile = selectedFiles[0];
       if (selectedFile) {
         const preview = document.getElementById('preview');
         preview.src = URL.createObjectURL(selectedFile);
@@ -118,7 +119,7 @@
       }
       container.innerHTML = data.map(p => `
         <div class="card" id="product-${p.id}">
-          ${p.image_url ? `<img class="thumb" src="${p.image_url}">` : ''}
+          ${p.image_urls ? p.image_urls.split(',').map(url => `<img class="thumb" src="${url}">`).join('') : (p.image_url ? `<img class="thumb" src="${p.image_url}">` : '')}
           <p><strong>${p.name}</strong></p>
           <div class="view-mode" data-id="${p.id}">
             <p>Price: ₦${p.price}</p>
@@ -150,36 +151,42 @@
       }
 
       let image_url = null;
+      let uploadedUrls = [];
 
-      if (selectedFile) {
-        msg.textContent = 'Uploading image...';
+      if (selectedFiles.length > 0) {
+        msg.textContent = 'Uploading images...';
         msg.className = 'msg';
 
-        const fileExt = selectedFile.name.split('.').pop();
-        const filePath = `${BUSINESS_ID}/${Date.now()}.${fileExt}`;
+        for (const file of selectedFiles) {
+          const fileExt = file.name.split('.').pop();
+          const filePath = `${BUSINESS_ID}/${Date.now()}-${Math.random().toString(36).slice(2)}.${fileExt}`;
 
-        const { error: uploadError } = await client.storage
-          .from('Image')
-          .upload(filePath, selectedFile);
+          const { error: uploadError } = await client.storage
+            .from('Image')
+            .upload(filePath, file);
 
-        if (uploadError) {
-          msg.textContent = 'Image upload error: ' + uploadError.message;
-          msg.className = 'msg error';
-          return;
+          if (uploadError) {
+            msg.textContent = 'Image upload error: ' + uploadError.message;
+            msg.className = 'msg error';
+            return;
+          }
+
+          const { data: urlData } = client.storage
+            .from('Image')
+            .getPublicUrl(filePath);
+
+          uploadedUrls.push(urlData.publicUrl);
         }
-
-        const { data: urlData } = client.storage
-          .from('Image')
-          .getPublicUrl(filePath);
-
-        image_url = urlData.publicUrl;
       }
+
+      image_url = uploadedUrls[0] || null;
+      const image_urls = uploadedUrls.length > 0 ? uploadedUrls.join(',') : null;
 
       msg.textContent = 'Saving product...';
       msg.className = 'msg';
 
       const { error } = await client.from('products').insert({
-        business_id: BUSINESS_ID, name, price, stock, description, image_url,
+        business_id: BUSINESS_ID, name, price, stock, description, image_url, image_urls,
       });
 
       if (error) {
@@ -196,7 +203,7 @@
       document.getElementById('description').value = '';
       document.getElementById('image-input').value = '';
       document.getElementById('preview').style.display = 'none';
-      selectedFile = null;
+      selectedFiles = [];
 
       loadProducts();
     });
