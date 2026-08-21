@@ -48,6 +48,9 @@
   </div>
 
   <script>
+    window.onerror = function(msg, url, line) {
+      alert("JS ERROR: " + msg + " (line " + line + ")");
+    };
     const SUPABASE_URL = 'https://sbtmbkpgefzgcokucitm.supabase.co';
     const SUPABASE_KEY = 'sb_publishable_0AbGRZ4qXZFC6GwcllNmrg_CvnW84Ka';
     const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
