@@ -117,13 +117,13 @@
         <div class="card" id="product-${p.id}">
           ${p.image_url ? `<img class="thumb" src="${p.image_url}">` : ''}
           <p><strong>${p.name}</strong></p>
-          <div class="view-mode-${p.id}">
+          <div class="view-mode" data-id="${p.id}">
             <p>Price: ₦${p.price}</p>
             <p>Stock: ${p.stock}</p>
             <p>${p.description || ''}</p>
             <button onclick="toggleEdit('${p.id}')">Edit</button>
           </div>
-          <div class="edit-mode-${p.id}" style="display:none;">
+          <div class="edit-mode" data-id="${p.id}" style="display:none;">
             <input type="number" id="edit-price-${p.id}" value="${p.price}" placeholder="Price">
             <input type="number" id="edit-stock-${p.id}" value="${p.stock}" placeholder="Stock">
             <button onclick="saveEdit('${p.id}')">Save</button>
@@ -195,11 +195,11 @@
       document.getElementById('preview').style.display = 'none';
       selectedFile = null;
     function toggleEdit(id) {
-      document.querySelectorAll(".view-mode-" + id).forEach(el => {
-        el.style.display = el.style.display === "none" ? "block" : "none";
+      document.querySelectorAll('.view-mode[data-id="' + id + '"]').forEach(el => {
+        el.style.display = el.style.display === 'none' ? 'block' : 'none';
       });
-      document.querySelectorAll(".edit-mode-" + id).forEach(el => {
-        el.style.display = el.style.display === "none" ? "block" : "none";
+      document.querySelectorAll('.edit-mode[data-id="' + id + '"]').forEach(el => {
+        el.style.display = el.style.display === 'none' ? 'block' : 'none';
       });
     }
 
