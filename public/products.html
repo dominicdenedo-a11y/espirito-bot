@@ -197,6 +197,10 @@
       document.getElementById('image-input').value = '';
       document.getElementById('preview').style.display = 'none';
       selectedFile = null;
+
+      loadProducts();
+    });
+
     function toggleEdit(id) {
       document.querySelectorAll('.view-mode[data-id="' + id + '"]').forEach(el => {
         el.style.display = el.style.display === 'none' ? 'block' : 'none';
@@ -213,9 +217,6 @@
       if (error) { alert("Error saving: " + error.message); return; }
       loadProducts();
     }
-
-      loadProducts();
-    });
 
     initBusiness().then(ok => { if (ok) loadProducts(); });
   </script>
