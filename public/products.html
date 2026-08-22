@@ -117,7 +117,27 @@
         container.innerHTML = '<p class="empty">No products yet.</p>';
         return;
       }
-      container.innerHTML = data.map(p => `
+
+      const { data: variantData } = await client
+        .from('product_variants')
+        .select('*')
+        .eq('business_id', BUSINESS_ID);
+
+      const variantsByProduct = {};
+      (variantData || []).forEach(v => {
+        if (!variantsByProduct[v.product_id]) variantsByProduct[v.product_id] = [];
+        variantsByProduct[v.product_id].push(v);
+      });
+
+      container.innerHTML = data.map(p => {
+        const variants = variantsByProduct[p.id] || [];
+        const variantsHtml = variants.map(v => `
+          <p style="font-size:0.85em;">
+            <strong>${v.option_name}:</strong> ${v.option_values}
+            <button onclick="deleteVariant('${v.id}')" style="width:auto;display:inline;padding:2px 8px;font-size:0.8em;">x</button>
+          </p>
+        `).join('');
+        return `
         <div class="card" id="product-${p.id}">
           ${p.image_urls ? p.image_urls.split(',').map(url => `<img class="thumb" src="${url}">`).join('') : (p.image_url ? `<img class="thumb" src="${p.image_url}">` : '')}
           <p><strong>${p.name}</strong></p>
@@ -133,8 +153,55 @@
             <button onclick="saveEdit('${p.id}')">Save</button>
             <button onclick="toggleEdit('${p.id}')">Cancel</button>
           </div>
+          <div style="margin-top:10px;border-top:1px solid var(--border);padding-top:10px;">
+            <p style="font-size:0.8em;color:var(--text-dim);">Options</p>
+            ${variantsHtml || '<p style="font-size:0.8em;color:var(--text-dim);">None yet</p>'}
+            <div class="view-variant-form" data-id="${p.id}">
+              <button onclick="toggleVariantForm('${p.id}')">Add Option</button>
+            </div>
+            <div class="edit-variant-form" data-id="${p.id}" style="display:none;">
+              <input type="text" id="variant-name-${p.id}" placeholder="e.g. Size">
+              <input type="text" id="variant-values-${p.id}" placeholder="e.g. 40,41,42">
+              <button onclick="saveVariant('${p.id}')">Save Option</button>
+              <button onclick="toggleVariantForm('${p.id}')">Cancel</button>
+            </div>
+          </div>
         </div>
-      `).join('');
+      `;
+      }).join('');
+    }
+
+    function toggleVariantForm(id) {
+      document.querySelectorAll('.view-variant-form[data-id="' + id + '"]').forEach(el => {
+        el.style.display = el.style.display === 'none' ? 'block' : 'none';
+      });
+      document.querySelectorAll('.edit-variant-form[data-id="' + id + '"]').forEach(el => {
+        el.style.display = el.style.display === 'none' ? 'block' : 'none';
+      });
+    }
+
+    async function saveVariant(productId) {
+      const option_name = document.getElementById('variant-name-' + productId).value;
+      const option_values = document.getElementById('variant-values-' + productId).value;
+      if (!option_name || !option_values) return;
+
+      const { error } = await client.from('product_variants').insert({
+        product_id: productId, business_id: BUSINESS_ID, option_name, option_values,
+      });
+      if (error) {
+        alert('Error saving option: ' + error.message);
+        return;
+      }
+      loadProducts();
+    }
+
+    async function deleteVariant(variantId) {
+      const { error } = await client.from('product_variants').delete().eq('id', variantId);
+      if (error) {
+        alert('Error deleting option: ' + error.message);
+        return;
+      }
+      loadProducts();
     }
 
     document.getElementById('add-btn').addEventListener('click', async () => {
